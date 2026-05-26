@@ -1,6 +1,12 @@
 package com.youtube_ad_skipper;
 
+import android.Manifest;
+import android.app.StatusBarManager;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Icon;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
@@ -9,7 +15,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -30,6 +39,13 @@ public class MainActivity extends AppCompatActivity {
     private TextView weekCountText;
 
     private static final int SECONDS_PER_SKIP = 5;
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) {
+                    requestQuickSettingsTile();
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +75,34 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        requestNotificationPermission();
         observeStats();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            } else {
+                requestQuickSettingsTile();
+            }
+        }
+    }
+
+    private void requestQuickSettingsTile() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            StatusBarManager statusBarManager = getSystemService(StatusBarManager.class);
+            if (statusBarManager != null) {
+                statusBarManager.requestAddTileService(
+                        new ComponentName(this, AdSkipTileService.class),
+                        "광고 스킵",
+                        Icon.createWithResource(this, R.drawable.ic_tile_skip),
+                        getMainExecutor(),
+                        result -> { }
+                );
+            }
+        }
     }
 
     @Override

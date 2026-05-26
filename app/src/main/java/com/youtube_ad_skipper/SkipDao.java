@@ -19,4 +19,8 @@ public interface SkipDao {
 
     @Query("SELECT COUNT(*) FROM skip_records")
     LiveData<Integer> getTotalCount();
+
+    // Quick Settings 타일용 동기 쿼리 (백그라운드 스레드에서 호출)
+    @Query("SELECT COUNT(*) FROM skip_records WHERE timestamp >= :todayStartMillis")
+    int getTodayCountSync(long todayStartMillis);
 }
