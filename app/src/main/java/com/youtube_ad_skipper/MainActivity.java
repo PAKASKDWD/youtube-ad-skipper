@@ -3,7 +3,9 @@ package com.youtube_ad_skipper;
 import android.content.Intent;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -16,10 +18,16 @@ import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView statusText;
+    private View statusDot;
+    private TextView statusLabel;
+    private TextView heroTitle;
+    private TextView heroSubtitle;
+    private TextView toggleSubtext;
+    private LinearLayout heroCard;
     private TextView todayCountText;
-    private TextView weekCountText;
     private TextView totalSavedText;
+    private TextView totalSavedUnit;
+    private TextView weekCountText;
 
     private static final int SECONDS_PER_SKIP = 5;
 
@@ -34,12 +42,18 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        statusText = findViewById(R.id.statusText);
+        statusDot = findViewById(R.id.statusDot);
+        statusLabel = findViewById(R.id.statusLabel);
+        heroTitle = findViewById(R.id.heroTitle);
+        heroSubtitle = findViewById(R.id.heroSubtitle);
+        toggleSubtext = findViewById(R.id.toggleSubtext);
+        heroCard = findViewById(R.id.heroCard);
         todayCountText = findViewById(R.id.todayCountText);
-        weekCountText = findViewById(R.id.weekCountText);
         totalSavedText = findViewById(R.id.totalSavedText);
-        Button btnOpenSettings = findViewById(R.id.btnOpenSettings);
+        totalSavedUnit = findViewById(R.id.totalSavedUnit);
+        weekCountText = findViewById(R.id.weekCountText);
 
+        Button btnOpenSettings = findViewById(R.id.btnOpenSettings);
         btnOpenSettings.setOnClickListener(v -> {
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             startActivity(intent);
@@ -62,22 +76,40 @@ public class MainActivity extends AppCompatActivity {
         boolean isEnabled = enabledServices != null
                 && enabledServices.contains(getPackageName() + "/" + AdSkipService.class.getName());
 
-        statusText.setText(isEnabled ? "서비스 활성화 중" : "서비스 비활성화 상태");
+        if (isEnabled) {
+            statusDot.setBackgroundResource(R.drawable.dot_live);
+            statusLabel.setText("활성화 중");
+            statusLabel.setTextColor(getColor(R.color.live));
+            heroTitle.setText("광고를 자동으로\n스킵하고 있어요.");
+            heroSubtitle.setText("백그라운드에서 접근성 서비스가 YouTube의 \"건너뛰기\" 버튼을 감지합니다.");
+            toggleSubtext.setText("실행 중 · 데이터 사용 없음");
+            heroCard.setBackgroundResource(R.drawable.bg_hero_card_active);
+        } else {
+            statusDot.setBackgroundResource(R.drawable.dot_inactive);
+            statusLabel.setText("비활성화");
+            statusLabel.setTextColor(getColor(R.color.md_on_surface_muted));
+            heroTitle.setText("스킵 기능이\n꺼져 있어요.");
+            heroSubtitle.setText("서비스를 켜려면 접근성 설정에서 활성화하세요.");
+            toggleSubtext.setText("꺼짐");
+            heroCard.setBackgroundResource(R.drawable.bg_hero_card);
+        }
     }
 
     private void observeStats() {
         SkipDao dao = AdSkipperApp.getDatabase().skipDao();
 
         dao.getTodayCount().observe(this, count ->
-                todayCountText.setText("오늘: " + count + "개 스킵"));
+                todayCountText.setText(String.valueOf(count)));
 
         long weekStart = getWeekStartMillis();
         dao.getWeekCount(weekStart).observe(this, count ->
-                weekCountText.setText("이번 주: " + count + "개 스킵"));
+                weekCountText.setText(count + "개 스킵"));
 
         dao.getTotalCount().observe(this, count -> {
             int totalSeconds = count * SECONDS_PER_SKIP;
-            totalSavedText.setText("총 절약 시간: " + formatSeconds(totalSeconds));
+            String[] formatted = formatDuration(totalSeconds);
+            totalSavedText.setText(formatted[0]);
+            totalSavedUnit.setText(formatted[1]);
         });
     }
 
@@ -89,6 +121,17 @@ public class MainActivity extends AppCompatActivity {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         return cal.getTimeInMillis();
+    }
+
+    // "4:32", "분" 또는 "1:05", "시간" 형태로 반환
+    static String[] formatDuration(int totalSeconds) {
+        int h = totalSeconds / 3600;
+        int m = (totalSeconds % 3600) / 60;
+        int s = totalSeconds % 60;
+        if (h > 0) {
+            return new String[]{h + ":" + String.format("%02d", m), "시간"};
+        }
+        return new String[]{m + ":" + String.format("%02d", s), "분"};
     }
 
     static String formatSeconds(int totalSeconds) {

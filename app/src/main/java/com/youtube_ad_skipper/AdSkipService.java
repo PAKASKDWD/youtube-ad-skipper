@@ -3,6 +3,7 @@ package com.youtube_ad_skipper;
 import android.accessibilityservice.AccessibilityService;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.content.SharedPreferences;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -29,6 +30,11 @@ public class AdSkipService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            return;
+        }
+
+        // Quick Settings 타일에서 OFF로 설정한 경우 스킵하지 않음
+        if (!AdSkipTileService.isSkipEnabled) {
             return;
         }
 
@@ -110,6 +116,10 @@ public class AdSkipService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         isRunning = true;
+
+        // SharedPreferences에서 타일 상태 복원
+        SharedPreferences prefs = getSharedPreferences("adskipper_prefs", MODE_PRIVATE);
+        AdSkipTileService.isSkipEnabled = prefs.getBoolean("skip_enabled", true);
     }
 
     @Override
